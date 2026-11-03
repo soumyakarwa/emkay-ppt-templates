@@ -1,9 +1,9 @@
 """
-Emkay presentation templates (v4), built from the Emkay brand guidelines.
-Creates three 16:9 decks:
-  Emkay_Master_Template.pptx                (Trust Teal)
-  Emkay_Wealth_Management_Template.pptx     (Wealth Indigo)
-  Emkay_Investment_Managers_Template.pptx   (Investment Pine)
+Emkay presentation templates (v5), built from the Emkay brand guidelines.
+Creates three 16:9 decks, each as .pptx (master copy) and .potx (template to distribute):
+  Emkay_Master_Template                (Trust Teal)
+  Emkay_Wealth_Management_Template     (Wealth Indigo)
+  Emkay_Investment_Managers_Template   (Investment Pine)
 
 Setup:  pip install python-pptx
 Run:    python build_emkay_templates.py   (close the decks in PowerPoint first)
@@ -17,7 +17,7 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.dml import MSO_LINE_DASH_STYLE
 from pptx.oxml.ns import qn
-from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+from pptx.opc.constants import RELATIONSHIP_TYPE as RT, CONTENT_TYPE as CT
 from pptx.chart.data import CategoryChartData
 from pptx.enum.chart import (XL_CHART_TYPE, XL_LEGEND_POSITION,
                             XL_LABEL_POSITION, XL_TICK_LABEL_POSITION)
@@ -25,8 +25,8 @@ from pptx.enum.chart import (XL_CHART_TYPE, XL_LEGEND_POSITION,
 # ---------------- Canvas and grid ----------------
 W, H = 13.333, 7.5      # 16:9, inches
 M = 0.75                # outer margin
-C1 = 0.45               # knight-only corner cell (presentation scale, guide p.35/37)
-C2 = 1.0                # knight + emkay corner cell (stacked, guide p.22 Template 1)
+C1 = 0.45               # small corner cell: company logo only (presentation scale, guide p.35/37)
+C2 = 1.0                # large corner cell: company logo + wordmark, stacked (guide p.22)
 CX, CY = M, 2.5         # content starts below the corner + title block
 FOOT_Y = H - 0.42       # footer baseline row
 
@@ -50,7 +50,7 @@ COMPLIANCE = "[Compliance line placeholder]"
 # NOTE: B1B9E6 and 82C487 are sampled from the guide's images, not its swatch tables.
 COLOURWAYS = {
     "master": dict(
-        file="Emkay_Master_Template.pptx", name="Teal",
+        file="Emkay_Master_Template",
         entity="Emkay Global Financial Services Limited",
         lockup_desc="tagline", title_lockup="Stacked",
         primary=TEAL, ground=PEARL,
@@ -61,7 +61,7 @@ COLOURWAYS = {
         quote_bg=TEAL, closing_bg=TEAL,
         table_band="E8DED3", theme5="E8DED3", theme6=RULE),
     "wealth": dict(
-        file="Emkay_Wealth_Management_Template.pptx", name="Indigo",
+        file="Emkay_Wealth_Management_Template",
         entity="Emkay Wealth Advisory Limited",
         lockup_desc="'Wealth Management' descriptor", title_lockup="Linear",
         primary="242B7F", ground=BEIGE,
@@ -72,7 +72,7 @@ COLOURWAYS = {
         quote_bg="0D0F26", closing_bg="0D0F26",
         table_band="E4E7FA", theme5="4455B7", theme6="E4E7FA"),
     "investment": dict(
-        file="Emkay_Investment_Managers_Template.pptx", name="Pine",
+        file="Emkay_Investment_Managers_Template",
         entity="[Investment Managers legal entity name]",
         lockup_desc="'Investment Managers' descriptor", title_lockup="Linear",
         primary="215224", ground=BEIGE,
@@ -131,10 +131,10 @@ def rect(s, x, y, w, h, fill, line=None, name=None):
     return shp
 
 def text(s, x, y, w, h, lines, size=BODY, font=F_REG, color=INK, bold=False,
-         align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, after=0, name=None):
+         align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, after=0, name=None, wrap=True):
     tb = s.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
     tf = tb.text_frame
-    tf.word_wrap = True
+    tf.word_wrap = wrap
     tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
     tf.vertical_anchor = anchor
     for i, ln in enumerate(lines if isinstance(lines, list) else [lines]):
@@ -167,6 +167,7 @@ def placeholder(s, x, y, w, h, label, fill=WHITE, line=GREY, color=TEAL,
     tf = shp.text_frame
     tf.word_wrap = True
     tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    tf.margin_left = tf.margin_right = Inches(0.02)
     tf.text = label
     for p in tf.paragraphs:
         p.alignment = PP_ALIGN.CENTER
@@ -183,15 +184,15 @@ def main_logo(s, x, y, w, h, cw, kind, dark=False):
 
 def corner(s, cw, c, wordmark=False, light=WHITE):
     """Top-left checkerboard corner, the only logo position on inner slides.
-    Knight (or knight + emkay) in the light cell; two orange cells step away on the diagonal."""
+    Company logo (or logo + wordmark) in the light cell; two orange cells on the diagonal."""
     rect(s, 0, 0, c, c, light)
     rect(s, c, 0, c, c, ORANGE)
     rect(s, 0, c, c, c, ORANGE)
     pad = 0.05
     if wordmark:
-        label = "KNIGHT +\nEMKAY"
+        label = "COMPANY LOGO\n+ EMKAY"
     else:
-        label = "KNIGHT" if c >= 0.8 else ""
+        label = "COMPANY LOGO" if c >= 0.8 else ""
     placeholder(s, pad, pad, c - 2 * pad, c - 2 * pad, label, fill=None,
                 line=ORANGE, color=ORANGE, size=7, name="Logo Placeholder")
 
@@ -243,12 +244,12 @@ P3 = "If the copy runs long, move it to a second slide rather than shrinking the
 # ---------------- Slides ----------------
 def s_opening_light(prs, cw):
     s = new_slide(prs, cw["title_ground"],
-        "Title slide, light (guide p.35). The only full lock-up in the deck, with tagline/descriptor. "
-        "Band = 30% of height: orange for master, deep shade for divisions.")
+        "Title slide, light. The only full logo lock-up in the deck, with tagline/descriptor. "
+        "Replace the placeholder with the supplied logo artwork.")
     band = H * 0.30
     if cw["title_lockup"] == "Stacked":
         main_logo(s, (W - 3.8) / 2, 0.55, 3.8, 3.6, cw, "Stacked")
-    else:  # linear with descriptor: >= 84.2mm printed, so ~3.8in+ on the slide
+    else:
         lw, lh = 4.8, 1.9
         main_logo(s, (W - lw) / 2, (H - band - lh) / 2, lw, lh, cw, "Linear")
     rect(s, 0, H - band, W, band, cw["title_band"])
@@ -260,8 +261,8 @@ def s_opening_light(prs, cw):
 
 def s_opening_dark(prs, cw):
     s = new_slide(prs, cw["dark_bg"],
-        "Title slide, dark (guide p.35). White-out stacked lock-up with tagline/descriptor. "
-        "Master: teal + orange bar. Divisions: deep shade + tint bar.")
+        "Title slide, dark. White-out logo lock-up with tagline/descriptor. "
+        "Replace the placeholder with the supplied white-out logo artwork.")
     rect(s, 0, H - 0.4, W, 0.4, cw["dark_bar"])
     main_logo(s, 1.0, 1.45, 3.9, 3.8, cw, "Stacked", dark=True)
     text(s, 5.6, 2.35, 7.0, 1.0, "TITLE SLIDE", DISPLAY, F_BLACK, PEARL, anchor=MSO_ANCHOR.BOTTOM)
@@ -270,7 +271,7 @@ def s_opening_dark(prs, cw):
 
 def s_agenda(prs, cw):
     s = new_slide(prs, cw["ground"],
-        "Agenda. Brand-colour panel, knight-only checkerboard top left (text slide).")
+        "Agenda. Company logo in the top-left corner. Do not move or resize the corner.")
     pw = 4.2
     rect(s, 0, 0, pw, H, cw["primary"])
     corner(s, cw, C1, light=cw["ground"])
@@ -292,8 +293,7 @@ def s_agenda(prs, cw):
 
 def s_section(prs, cw):
     s = new_slide(prs, cw["ground"],
-        "Section divider (guide p.21, p.37, p.48, p.50). Stepped grid, knight + emkay in the corner cell "
-        "(at its 40mm print minimum). Master: orange block. Divisions: light tint block.")
+        "Section divider. Company logo + wordmark in the corner cell. Change only the heading text.")
     c = H / 4
     for col in range(math.ceil(W / c)):
         rect(s, col * c, 0, min(c, W - col * c), c, cw["ground"], cw["grid"])
@@ -310,7 +310,8 @@ def s_section(prs, cw):
 
 def s_text_heavy(prs, cw):
     s = new_slide(prs, cw["ground"],
-        "Text-heavy slide. Knight-only corner. Title Aptos Bold x, sub SemiBold x/2.5, body Regular sub/1.5.")
+        "Text-heavy slide. Title Aptos Bold 44 pt, sub-headline Aptos SemiBold 18 pt, body Aptos "
+        "Regular 12 pt. If copy runs long, split across slides rather than shrinking the type.")
     pw = 4.2
     rect(s, 0, 0, pw, H, cw["primary"])
     corner(s, cw, C1, light=cw["ground"])
@@ -327,8 +328,8 @@ def s_text_heavy(prs, cw):
 
 def s_image_content(prs, cw):
     s = new_slide(prs, cw["ground"],
-        "Image and content (guide p.36). Knight + emkay corner (image-led slide). Band = 40% of height. "
-        "Headline: orange (master) / Pearl White (divisions).")
+        "Image and content. Company logo + wordmark in the corner. Colour band = 40% of height. "
+        "One message per slide.")
     ih = H * 0.6
     placeholder(s, 0, 0, W, ih,
         "IMAGE\nEditorial artwork: photo cut-out printed in one colour (halftone) on a flat brand shape.\n"
@@ -371,8 +372,8 @@ def style_chart(chart, cw):
 
 def s_chart(prs, cw):
     s = new_slide(prs, cw["ground"],
-        "Chart slide. Knight-only corner. Chart colours in order: brand colour, Growth Orange, "
-        "Amber FCB537, Grey BCBEC0. Never use software default palettes.")
+        "Chart slide. Chart colours in this order only: brand colour, orange, amber, grey. "
+        "Do not use PowerPoint's default chart colours. Right-click the chart > Edit Data to change values.")
     corner(s, cw, C1)
     title(s, cw, "Chart title goes here", "Sub headline: the one takeaway from this chart", rule=True)
     rect(s, CX, CY, W - M - CX, 4.0, WHITE)
@@ -389,12 +390,13 @@ def s_chart(prs, cw):
 
 def s_kpi(prs, cw):
     s = new_slide(prs, cw["ground"],
-        "KPI slide. Knight-only corner. Growth Orange marks only the ONE figure that matters.")
+        "KPI slide. Orange marks only the ONE figure that matters most. Keep figures short "
+        "(e.g. 'Rs 13.8 bn') so they stay on one line.")
     corner(s, cw, C1)
     title(s, cw, "Key figures at a glance", "Sub headline: what these numbers mean")
     gap = 0.4
     cwid = (W - M - CX - 2 * gap) / 3
-    y, h = CY, 3.2
+    y, h = CY, 2.8
     items = [("Assets under advice", "Rs 13.8 bn", "As on DD Month YYYY (sample)"),
              ("Portfolio TWRR", "39.6%", "Net of fees and expenses (sample)"),
              ("Net inflows, YTD", "Rs 21.4 bn", "As on DD Month YYYY (sample)")]
@@ -402,15 +404,15 @@ def s_kpi(prs, cw):
         x = CX + i * (cwid + gap)
         rect(s, x, y, cwid, h, WHITE)
         rect(s, x, y, cwid, 0.06, cw["primary"])      # thin rule, not a square
-        text(s, x + 0.4, y + 0.6, cwid - 0.8, 0.4, lab, 14, F_SEMI, INK)
-        text(s, x + 0.4, y + 1.15, cwid - 0.8, 0.9, val, 48, F_BLACK,
-             ORANGE if i == 0 else cw["primary"])
-        text(s, x + 0.4, y + 2.35, cwid - 0.8, 0.4, cap, BODY, F_REG, INK)
+        text(s, x + 0.3, y + 0.45, cwid - 0.6, 0.4, lab, 14, F_SEMI, INK)
+        text(s, x + 0.3, y + 0.95, cwid - 0.6, 0.7, val, 36, F_BLACK,
+             ORANGE if i == 0 else cw["primary"], wrap=False)
+        text(s, x + 0.3, y + 1.95, cwid - 0.6, 0.5, cap, BODY, F_REG, INK)
     footer(s, cw)
 
 def s_table(prs, cw):
     s = new_slide(prs, cw["ground"],
-        "Table. Knight-only corner. Header in the brand colour; tints only for table bands (guide p.14).")
+        "Table. Header row in the brand colour; alternate rows in the light tint.")
     corner(s, cw, C1)
     title(s, cw, "Table title goes here", "Coverage summary (sample data)")
     rows = [("Company", "Rating", "Target price (Rs)", "Upside"),
@@ -446,7 +448,7 @@ def s_table(prs, cw):
     footer(s, cw)
 
 def s_comparison(prs, cw):
-    s = new_slide(prs, cw["ground"], "Two-column comparison. Knight-only corner.")
+    s = new_slide(prs, cw["ground"], "Two-column comparison.")
     corner(s, cw, C1)
     title(s, cw, "Comparison title goes here", "Sub headline framing the choice")
     gap = 0.5
@@ -466,25 +468,24 @@ def s_comparison(prs, cw):
 
 def s_quote(prs, cw):
     s = new_slide(prs, cw["quote_bg"],
-        "Quote. Knight-only corner. One message only. The cut-out portrait breaks the edge of the "
-        "accent block (guide p.25). Master: orange block. Divisions: light tint block (p.49, p.51).")
+        "Quote. One quote only. The cut-out portrait should break the top edge of the colour block.")
     corner(s, cw, C1, light=cw["ground"])
     text(s, CX, 1.45, 1.5, 1.1, "\u201C", 120, F_BLACK, cw["accent"])
-    text(s, CX, 2.55, 6.9, 2.4,
+    text(s, CX, 2.55, 7.6, 2.4,
          "One quote per slide, set large enough to read from the back of the room.",
          32, F_REG, PEARL, bold=True)
-    text(s, CX, 5.2, 6.9, 0.4, "Speaker Name", SUB, F_SEMI, PEARL)
-    text(s, CX, 5.6, 6.9, 0.4, "Designation, Emkay", BODY + 2, F_REG, PEARL)
+    text(s, CX, 5.2, 7.6, 0.4, "Speaker Name", SUB, F_SEMI, PEARL)
+    text(s, CX, 5.6, 7.6, 0.4, "Designation, Emkay", BODY + 2, F_REG, PEARL)
     rect(s, 8.9, 3.0, 3.7, H - 3.0, cw["accent"])
     placeholder(s, 9.2, 1.5, 3.7, H - 1.5,
-        "PORTRAIT CUT-OUT\nBreaks the top edge of the accent block.\nHint of brand colour in clothing or background.",
+        "PORTRAIT CUT-OUT\nBreaks the top edge of the colour block.\nHint of brand colour in clothing or background.",
         fill=None, line=PEARL, color=PEARL, size=11)
-    footer(s, cw, color=PEARL, number=False, w=6.9)   # portrait covers the bottom right
+    footer(s, cw, color=PEARL, number=False, w=7.6)   # portrait covers the bottom right
 
 def s_team(prs, cw):
     s = new_slide(prs, cw["ground"],
-        "Team. Knight + emkay corner (image-led slide). People imagery: natural light, looking out of "
-        "frame (guide p.23). Colour OR monochrome per slide, never both (guide p.24).")
+        "Team. Company logo + wordmark in the corner. Photos: natural light, looking out of frame. "
+        "Use colour OR black-and-white photos on one slide, never both.")
     corner(s, cw, C2, wordmark=True)
     title(s, cw, "Leadership team", "One grade per slide: colour or monochrome", c=C2)
     x0, gap = M, 0.35
@@ -494,14 +495,13 @@ def s_team(prs, cw):
         x = x0 + i * (pw + gap)
         placeholder(s, x, y, pw, ph, "PORTRAIT\nNatural light, looking out of frame",
                     fill=WHITE, line=GREY, color=cw["primary"], size=11)
-        text(s, x, y + ph + 0.2, pw, 0.4, "Name Surname", SUB, F_SEMI, cw["primary"])
-        text(s, x, y + ph + 0.6, pw, 0.4, "Designation", BODY, F_REG, INK)
+        text(s, x, y + ph + 0.15, pw, 0.4, "Name Surname", SUB, F_SEMI, cw["primary"])
+        text(s, x, y + ph + 0.55, pw, 0.4, "Designation", BODY, F_REG, INK)
     footer(s, cw, x=x0)
 
 def s_full_bleed(prs, cw):
     s = new_slide(prs, cw["ground"],
-        "Full-bleed image (guide p.26, p.36). When artwork fills the frame, the checkerboard corner "
-        "top left is the only place the identity appears. No footer.")
+        "Full-bleed image. The corner logo is the only branding on this slide. No footer.")
     placeholder(s, 0, 0, W, H,
         "FULL-BLEED IMAGE\nEditorial artwork: one cut-out, one flat brand shape",
         fill=cw["ground"], line=GREY, color=cw["primary"], size=16)
@@ -509,8 +509,7 @@ def s_full_bleed(prs, cw):
 
 def s_thank_you(prs, cw):
     s = new_slide(prs, cw["closing_bg"],
-        "Closing slide. Knight-only corner. Master: teal + orange rule. Divisions: deep shade + tint rule "
-        "(as the division email signatures, p.53). Carries the legal details, so no footer.")
+        "Closing slide. Carries the legal details, so no footer.")
     corner(s, cw, 1.5)
     text(s, 1.15, 3.9, 9.0, 1.0, "Thank you", 60, F_BLACK, PEARL)
     rect(s, 1.15, 5.05, 6.1, 0.04, cw["accent"])
@@ -528,12 +527,16 @@ def build(key):
     cw = COLOURWAYS[key]
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(W), Inches(H)
-    prs.core_properties.title = cw["file"].replace("_", " ").replace(".pptx", "")
+    props = prs.core_properties
+    props.title = cw["file"].replace("_", " ")
+    props.author = "Emkay"
+    props.last_modified_by = "Emkay"
+    props.comments = ""
     apply_theme(prs, cw)
     for make in SLIDES:
         make(prs, cw)
-    prs.save(cw["file"])
-    print("Saved", cw["file"])
+    prs.save(cw["file"] + ".pptx")
+    print("Saved", cw["file"] + ".pptx")
 
 if __name__ == "__main__":
     for key in COLOURWAYS:
